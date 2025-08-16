@@ -97,3 +97,30 @@ Version 0.3.0 focuses on enhancing robustness, agent output consistency, the cla
 *   **More Robust Handover Protocol:**
     *   The handover process now includes a step for the outgoing agent to explicitly capture and transfer the most recent conversational context and unlogged user directives, ensuring the incoming agent has the freshest layer of user intent (see `prompts/01_Manager_Agent_Core_Guides/05_Handover_Protocol_Guide.md`).
     *   The `prompts/02_Utility_Prompts_And_Format_Definitions/Handover_Artifact_Format.md` has been restructured for enhanced clarity and usability in documenting handover context.
+
+## Backend Quickstart (MVP)
+
+Local prerequisites:
+- Python 3.11
+- macOS with Xcode CLT for building wheels (optional)
+
+Steps:
+1) Create and activate a virtualenv:
+   - python3.11 -m venv .venv && source .venv/bin/activate
+2) Install dependencies:
+   - pip install -r backend/requirements.txt
+3) Configure environment:
+   - cp backend/.env.example backend/.env
+   - Edit backend/.env, set EMAIL_MODEL_PATH to your DistilBERT directory (e.g., "distilbert-base-uncased-finetuned")
+4) Run the API server:
+   - bash backend/devserver.sh
+   - Health check: http://localhost:8000/healthz
+   - Analyze endpoint: POST http://localhost:8000/api/analyze
+     Body: {"content": "...email text...", "type": "email"}
+5) Run tests:
+   - pytest -q backend
+
+Notes:
+- Logs include x-request-id and exclude PII.
+- SQLite file is created at ./app.db by default.
+- Initial model warmup happens at startup; first request may be slightly slower.

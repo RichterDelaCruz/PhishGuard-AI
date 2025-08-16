@@ -1,0 +1,8 @@
+{
+  "name": "PhishGuard Backend",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bash backend/devserver.sh",
+    "test": "pytest -q backend"
+  }
+}
