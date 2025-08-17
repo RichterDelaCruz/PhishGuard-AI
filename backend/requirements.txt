@@ -4,8 +4,11 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 sqlmodel==0.0.21
 transformers==4.43.3
+# Pin NumPy to <2 for compatibility with current Torch/Transformers stack
+numpy<2
 # NOTE: Install PyTorch separately per your platform; tests don't require it.
-# See https://pytorch.org/get-started/locally/
+# For local CPU-only dev on macOS/x86_64 use:
+#   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 python-dotenv==1.0.1
 httpx==0.27.0
 pytest==8.2.0

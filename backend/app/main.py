@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,24 +25,30 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         # attach to state
         request.state.request_id = request_id
-        response: Response
+        response: Response | None = None
         try:
             response = await call_next(request)
+            return response
         finally:
             dur_ms = (time.perf_counter() - start) * 1000
+            status_code = (
+                getattr(response, "status_code", None) if response is not None else None
+            )
             # Minimal structured log with no PII (do not log body)
             logger.info(
-                "request",
-                extra={
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status": getattr(response, "status_code", None),
-                    "duration_ms": round(dur_ms, 2),
-                },
+                json.dumps(
+                    {
+                        "event": "request",
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status": status_code,
+                        "duration_ms": round(dur_ms, 2),
+                    }
+                )
             )
-        response.headers["x-request-id"] = request_id
-        return response
+            if response is not None:
+                response.headers["x-request-id"] = request_id
 
 
 @asynccontextmanager
@@ -51,10 +58,11 @@ async def lifespan(app: FastAPI):
     # Warm-up model
     try:
         from .services.model import get_model_service
+
         svc = get_model_service()
         await svc.warmup()
     except Exception as e:
-        logger.warning("model_warmup_failed", extra={"error": str(e)})
+        logger.warning(json.dumps({"event": "model_warmup_failed", "error": str(e)}))
     yield
 
 
@@ -68,10 +76,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Simple health route
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
+
 
 # Routers
 app.include_router(analyze_router, prefix="/api")

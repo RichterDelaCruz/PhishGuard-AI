@@ -1,8 +1,8 @@
 from __future__ import annotations
-from datetime import datetime
-from typing import Optional
+import datetime
 from sqlmodel import SQLModel, Field
 import uuid as _uuid
+
 
 class Analysis(SQLModel, table=True):
     __tablename__ = "analyses"
@@ -11,4 +11,6 @@ class Analysis(SQLModel, table=True):
     content_type: str = Field(index=True)
     risk_score: float
     classification: str
-    created_at: datetime | None = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime.datetime | None = Field(
+        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc), index=True
+    )

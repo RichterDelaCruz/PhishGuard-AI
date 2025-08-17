@@ -1,6 +1,6 @@
-import asyncio
 import pytest
 from backend.app.services.preprocess import preprocess_email, MAX_LENGTH
+
 
 @pytest.mark.asyncio
 async def test_preprocess_truncation_and_hash():
@@ -9,12 +9,14 @@ async def test_preprocess_truncation_and_hash():
     assert len(cleaned) == MAX_LENGTH
     assert len(h) == 64
 
+
 @pytest.mark.asyncio
 async def test_preprocess_blocks_script_and_template():
     with pytest.raises(ValueError):
         await preprocess_email("<script>alert(1)</script>")
     with pytest.raises(ValueError):
         await preprocess_email("Hello {{x}} world")
+
 
 @pytest.mark.asyncio
 async def test_preprocess_strips_html():

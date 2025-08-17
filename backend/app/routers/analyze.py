@@ -1,9 +1,12 @@
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, HTTPException, Request, Response
+import json
+from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import JSONResponse
-from ..schemas import AnalyzeRequest, AnalyzeResponse, Indicator
+from ..schemas import AnalyzeRequest, AnalyzeResponse
 from ..services.preprocess import preprocess_email
+
+# Import the module so tests can monkeypatch get_model_service
 from ..services import model as model_module
 from ..services.db import save_analysis
 
@@ -12,10 +15,13 @@ logger = logging.getLogger("phishguard.api")
 
 TEXT_SIZE_LIMIT = 2 * 1024 * 1024  # 2MB
 
+
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest, request: Request):
     if req.type != "email":
-        raise HTTPException(status_code=400, detail="Only type=email is supported in Phase 1")
+        raise HTTPException(
+            status_code=400, detail="Only type=email is supported in Phase 1"
+        )
 
     # Size guard
     if len(req.content.encode("utf-8")) > TEXT_SIZE_LIMIT:
@@ -32,19 +38,42 @@ async def analyze(req: AnalyzeRequest, request: Request):
     try:
         result = await svc.infer(cleaned)
     except Exception as e:
-        logger.error("inference_failed", extra={"request_id": request.state.request_id, "error": str(e)})
+        logger.error(
+            json.dumps(
+                {
+                    "event": "inference_failed",
+                    "request_id": getattr(request.state, "request_id", None),
+                    "error": str(e),
+                }
+            )
+        )
         raise HTTPException(status_code=500, detail="Inference failed")
 
     # Persist
     try:
-        await save_analysis(content_hash=content_hash, content_type="email", risk_score=result.risk_score, classification=result.classification)
+        await save_analysis(
+            content_hash=content_hash,
+            content_type="email",
+            risk_score=result.risk_score,
+            classification=result.classification,
+        )
     except Exception as e:
-        logger.error("persistence_failed", extra={"request_id": request.state.request_id, "error": str(e)})
+        logger.error(
+            json.dumps(
+                {
+                    "event": "persistence_failed",
+                    "request_id": getattr(request.state, "request_id", None),
+                    "error": str(e),
+                }
+            )
+        )
 
-    response = JSONResponse(content={
-        "risk_score": result.risk_score,
-        "classification": result.classification,
-        "indicators": result.indicators,
-    })
+    response = JSONResponse(
+        content={
+            "risk_score": result.risk_score,
+            "classification": result.classification,
+            "indicators": result.indicators,
+        }
+    )
     response.headers["x-request-id"] = request.state.request_id
     return response
